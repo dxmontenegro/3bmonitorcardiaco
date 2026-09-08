@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CardioSim MX-7 — Monitor de Sinais Vitais (Simulador Educacional)</title>
+<style>
+  :root{
+    --bezel: #1b1d1f;
+    --bezel-2: #26292c;
+    --screen: #05100c;
+    --green: #33ff8c;
+    --green-dim: #0f5c33;
+    --cyan: #35d4ff;
+    --yellow: #ffd93d;
+    --red: #ff4d4d;
+    --white: #eef2f0;
+    --amber-btn: #3a3d40;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; height:100%; width:100%;
+    background:#000;
+    font-family:'Segoe UI', Arial, sans-serif;
+    overflow:hidden;
+    -webkit-user-select:none; user-select:none;
+    touch-action:manipulation;
+  }
+  #device{
+    width:100vw; height:100vh;
+    background:linear-gradient(180deg,var(--bezel),var(--bezel-2));
+    display:flex; flex-direction:column;
+    padding: 1.2vh 1.4vw 0.8vh;
+  }
+  #brandbar{
+    display:flex; justify-content:space-between; align-items:center;
+    color:#8a8f93; font-size:1.4vh; letter-spacing:2px; padding:0 0.6vw 0.6vh;
+  }
+  #brandbar b{ color:#c7cbce; font-size:1.6vh; letter-spacing:3px;}
+  #screen{
+    flex:1;
+    background:var(--screen);
+    border-radius:10px;
+    border: 3px solid #000;
+    box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 0 0 2px #333;
+    display:flex; flex-direction:column;
+    overflow:hidden;
+    position:relative;
+  }
+  #screen.alarm-flash{ animation: flashborder 1s infinite; }
+  @keyframes flashborder{
+    0%,100%{ box-shadow: inset 0 0 30px rgba(0,0,0,0.8), 0 0 0 2px #333; }
+    50%{ box-shadow: inset 0 0 40px rgba(255,0,0,0.5), 0 0 0 4px var(--red); }
+  }
+  #topbar{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:0.8vh 1.2vw; font-size:1.5vh; color:var(--white);
+    border-bottom:1px solid #123;
+  }
+  #topbar .patient{ display:flex; gap:1.4vw; }
+  #topbar .patient span.lbl{ color:#5a8f78; margin-right:4px; }
+  #clock{ font-variant-numeric: tabular-nums; color:#9fe8c4;}
+  #alarmState{
+    padding:2px 10px; border-radius:4px; font-size:1.3vh; font-weight:bold;
+    background:#123; color:#5a8f78;
+  }
+  #alarmState.active{ background:var(--red); color:#200; }
+  #main{
+    flex:1; display:flex; overflow:hidden;
+  }
+  #waves{
+    flex:3; display:flex; flex-direction:column; padding:0.4vh 0.6vw;
+    gap:0.3vh;
+    border-right:1px solid #123;
+  }
+  .wave-row{
+    flex:1; position:relative; min-height:0;
+    border-bottom:1px dashed #113322;
+  }
+  .wave-row:last-child{ border-bottom:none; }
+  .wave-row .tag{
+    position:absolute; top:2px; left:6px; font-size:1.3vh; font-weight:bold; z-index:2;
+  }
+  canvas{ width:100%; height:100%; display:block; }
+  #vitals{
+    flex:1.15; display:flex; flex-direction:column; padding:0.5vh 0.7vw; gap:0.4vh; min-width: 170px;
+  }
+  .vital{
+    flex:1; border-bottom:1px solid #113322; display:flex; flex-direction:column; justify-content:center; padding:0 0.4vw; position:relative;
+  }
+  .vital:last-child{ border-bottom:none; }
+  .vital .label{ font-size:1.4vh; letter-spacing:1px; }
+  .vital .value{ font-size:5.2vh; font-weight:700; line-height:1; font-variant-numeric: tabular-nums; }
+  .vital .sub{ font-size:1.3vh; opacity:0.85; }
+  .vital .limits{ position:absolute; right:0.4vw; top:0.3vh; font-size:1.1vh; opacity:0.6; }
+  .hr .value, .hr .label, .hr .limits{ color: var(--green); }
+  .spo2 .value, .spo2 .label, .spo2 .limits{ color: var(--cyan); }
+  .nibp .value, .nibp .label, .nibp .limits{ color: var(--red); }
+  .resp .value, .resp .label, .resp .limits{ color: var(--yellow); }
+  .vital.blink .value{ animation: blink 1s infinite; }
+  @keyframes blink{ 50%{ opacity:0.25; } }
+
+  #softkeys{
+    display:flex; border-top:1px solid #123;
+  }
+  #softkeys button{
+    flex:1; background:none; border:none; border-right:1px solid #123;
+    color:#9fe8c4; font-size:1.4vh; padding:0.9vh 0; cursor:pointer;
+  }
+  #softkeys button:last-child{ border-right:none; }
+  #softkeys button:active{ background:#0f2a20; }
+
+  /* physical control panel */
+  #panel{
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 1vh 1vw 0.4vh;
+    gap: 1vw;
+  }
+  #panel .group{ display:flex; align-items:center; gap:0.8vw; }
+  .pbtn{
+    background: radial-gradient(circle at 35% 30%, #4a4e52, #2a2d30 70%);
+    border: 1px solid #111;
+    color:#dfe3e5;
+    border-radius:50%;
+    width:5.2vh; height:5.2vh;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.1vh; text-align:center; line-height:1.05;
+    cursor:pointer;
+    box-shadow: 0 2px 0 #0a0a0a, 0 3px 4px rgba(0,0,0,0.5);
+  }
+  .pbtn:active{ box-shadow: 0 0 0 #0a0a0a inset; transform: translateY(2px); }
+  .pbtn.wide{ border-radius:10px; width:8vh; }
+  .pbtn.power{ background: radial-gradient(circle at 35% 30%, #3a5, #163b21 70%); }
+  .pbtn.alarmoff{ background: radial-gradient(circle at 35% 30%, #d55, #6b1414 70%); }
+  .knob{
+    width:6.5vh; height:6.5vh; border-radius:50%;
+    background: conic-gradient(from 220deg, #555, #222 60%, #555);
+    border:1px solid #000;
+    position:relative;
+    box-shadow: 0 2px 0 #0a0a0a, 0 3px 6px rgba(0,0,0,0.6);
+    cursor:pointer;
+  }
+  .knob::after{
+    content:''; position:absolute; top:8%; left:50%; width:3px; height:35%;
+    background:#eee; transform:translateX(-50%); border-radius:2px;
+  }
+  #logo{ color:#6b6f72; font-size:1.3vh; letter-spacing:1px; }
+
+  /* teacher panel */
+  #teacherToggle{
+    position:fixed; bottom:0.6vh; right:0.6vw; z-index:50;
+    background:#222; color:#999; border:1px solid #444; border-radius:6px;
+    font-size:1.2vh; padding:4px 8px; cursor:pointer; opacity:0.55;
+  }
+  #teacherPanel{
+    position:fixed; inset:0; background:rgba(0,0,0,0.72);
+    display:none; align-items:center; justify-content:center; z-index:100;
+  }
+  #teacherPanel.open{ display:flex; }
+  #teacherCard{
+    background:#1c1f21; color:#e6e9ea; width:min(560px,92vw); max-height:88vh; overflow:auto;
+    border-radius:12px; padding:20px 22px; border:1px solid #333;
+  }
+  #teacherCard h2{ margin-top:0; font-size:18px; color:#9fe8c4; }
+  #teacherCard .row{ margin:14px 0; }
+  #teacherCard label{ display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px; color:#bcc; }
+  #teacherCard input[type=range]{ width:100%; }
+  #teacherCard .presets{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
+  #teacherCard .presets button{
+    background:#2a2f32; color:#e6e9ea; border:1px solid #444; border-radius:6px;
+    padding:8px 12px; font-size:13px; cursor:pointer;
+  }
+  #teacherCard .presets button:hover{ background:#3a4044; }
+  #teacherCard .closeRow{ text-align:right; margin-top:10px; }
+  #teacherCard .closeRow button{
+    background:#3a4044; color:#fff; border:none; border-radius:6px; padding:8px 16px; cursor:pointer;
+  }
+  #teacherCard small{ color:#889; }
+</style>
+</head>
+<body>
+
+<div id="device">
+  <div id="brandbar">
+    <span><b>3ºB - MACCE </b> &nbsp;MX-7</span>
+    <span>SIMULADOR EDUCACIONAL — NÃO É UM DISPOSITIVO MÉDICO REAL</span>
+  </div>
+
+  <div id="screen">
+    <div id="topbar">
+      <div class="patient">
+        <span><span class="lbl">Leito</span>12-A</span>
+        <span><span class="lbl">Paciente</span>3ºA</span>
+        <span><span class="lbl">Modo</span>Adulto</span>
+      </div>
+      <div id="alarmState">ALARMES ATIVOS</div>
+      <div id="clock">00:00:00</div>
+    </div>
+
+    <div id="main">
+      <div id="waves">
+        <div class="wave-row">
+          <div class="tag" style="color:var(--green)">ECG II &nbsp;25mm/s</div>
+          <canvas id="ecgCanvas"></canvas>
+        </div>
+        <div class="wave-row">
+          <div class="tag" style="color:var(--cyan)">SpO₂ Pleth</div>
+          <canvas id="spo2Canvas"></canvas>
+        </div>
+        <div class="wave-row">
+          <div class="tag" style="color:var(--yellow)">RESP</div>
+          <canvas id="respCanvas"></canvas>
+        </div>
+      </div>
+
+      <div id="vitals">
+        <div class="vital hr">
+          <div class="limits">50-120</div>
+          <div class="label">FC <span style="font-size:1.1vh">bpm</span></div>
+          <div class="value" id="hrVal">78</div>
+        </div>
+        <div class="vital spo2">
+          <div class="limits">≥90</div>
+          <div class="label">SpO₂ <span style="font-size:1.1vh">%</span></div>
+          <div class="value" id="spo2Val">98</div>
+        </div>
+        <div class="vital nibp">
+          <div class="limits">90-140/60</div>
+          <div class="label">PNI <span style="font-size:1.1vh">mmHg</span></div>
+          <div class="value" id="nibpVal">118/76</div>
+          <div class="sub">(<span id="mapVal">90</span>) — última: <span id="nibpTime">--:--</span></div>
+        </div>
+        <div class="vital resp">
+          <div class="limits">8-24</div>
+          <div class="label">FR <span style="font-size:1.1vh">rpm</span></div>
+          <div class="value" id="respVal">16</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="softkeys">
+      <button id="btnAlarmsMenu">Limites de Alarme</button>
+      <button id="btnNibp">Iniciar PNI</button>
+      <button id="btnFreeze">Congelar Tela</button>
+      <button id="btnLeads">Derivação</button>
+      <button id="btnMenu">Menu Principal</button>
+    </div>
+  </div>
+
+  <div id="panel">
+    <div class="group">
+      <div class="pbtn power" id="btnPower" title="Ligar/Desligar">LIGA<br>DESL</div>
+      <div class="pbtn alarmoff" id="btnSilence" title="Silenciar alarme">SILEN.<br>ALARME</div>
+      <div class="pbtn" id="btnPrint" title="Imprimir">IMPRI<br>MIR</div>
+    </div>
+    <div class="group">
+      <div id="logo">MONTE CARDIO · EEMTI DRAGÃO DO MAR</div>
+    </div>
+    <div class="group">
+      <div class="pbtn wide" id="btnNibpStart">PNI<br>START</div>
+      <div class="knob" id="volKnob" title="Volume"></div>
+      <div class="knob" id="selKnob" title="Selecionar / Navegar"></div>
+    </div>
+  </div>
+</div>
+
+<button id="teacherToggle">Painel do professor ⚙</button>
+
+<div id="teacherPanel">
+  <div id="teacherCard">
+    <h2>Painel do Professor — controlar o cenário</h2>
+    <small>Ajuste os valores para simular diferentes condições clínicas durante a demonstração.</small>
+
+    <div class="row">
+      <label>Frequência cardíaca (FC) <span id="lblHR">78 bpm</span></label>
+      <input type="range" id="rangeHR" min="0" max="220" value="78">
+    </div>
+    <div class="row">
+      <label>Saturação de oxigênio (SpO₂) <span id="lblSpo2">98 %</span></label>
+      <input type="range" id="rangeSpo2" min="50" max="100" value="98">
+    </div>
+    <div class="row">
+      <label>Frequência respiratória (FR) <span id="lblResp">16 rpm</span></label>
+      <input type="range" id="rangeResp" min="0" max="45" value="16">
+    </div>
+    <div class="row">
+      <label>Pressão arterial sistólica <span id="lblSys">118 mmHg</span></label>
+      <input type="range" id="rangeSys" min="50" max="220" value="118">
+    </div>
+    <div class="row">
+      <label>Pressão arterial diastólica <span id="lblDia">76 mmHg</span></label>
+      <input type="range" id="rangeDia" min="30" max="140" value="76">
+    </div>
+
+    <div class="presets">
+      <button data-preset="normal">Normal</button>
+      <button data-preset="tachy">Taquicardia</button>
+      <button data-preset="brady">Bradicardia</button>
+      <button data-preset="hipoxia">Hipóxia</button>
+      <button data-preset="hipotensao">Hipotensão / choque</button>
+      <button data-preset="pcr">Parada cardiorrespiratória</button>
+      <button data-preset="volta">Retorno à circulação (RCE)</button>
+    </div>
+
+    <div class="closeRow">
+      <button id="teacherClose">Fechar e voltar ao monitor</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- STATE ----------
+  var state = {
+    hr: 78, spo2: 98, resp: 16, sys: 118, dia: 76,
+    running: true, arrest: false, silenced: false
+  };
+
+  var els = {
+    hrVal: document.getElementById('hrVal'),
+    spo2Val: document.getElementById('spo2Val'),
+    nibpVal: document.getElementById('nibpVal'),
+    mapVal: document.getElementById('mapVal'),
+    respVal: document.getElementById('respVal'),
+    nibpTime: document.getElementById('nibpTime'),
+    clock: document.getElementById('clock'),
+    alarmState: document.getElementById('alarmState'),
+    screen: document.getElementById('screen'),
+    vitalHR: document.querySelector('.vital.hr'),
+    vitalSpo2: document.querySelector('.vital.spo2'),
+    vitalResp: document.querySelector('.vital.resp'),
+  };
+
+  function map(v,i1,i2,o1,o2){ return o1 + (o2-o1)*((v-i1)/(i2-i1)); }
+
+  // ---------- CLOCK ----------
+  function tickClock(){
+    var d = new Date();
+    function p(n){ return n<10?'0'+n:n; }
+    els.clock.textContent = p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
+  }
+  setInterval(tickClock, 1000); tickClock();
+
+  // ---------- AUDIO (beep) ----------
+  var audioCtx = null;
+  function beep(freq, dur){
+    if(state.silenced) return;
+    try{
+      if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type='sine'; o.frequency.value = freq || 880;
+      g.gain.value = 0.05;
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur||0.09));
+      o.stop(audioCtx.currentTime + (dur||0.09) + 0.02);
+    }catch(e){}
+  }
+
+  // ---------- WAVEFORM CANVASES ----------
+  function setupCanvas(id){
+    var c = document.getElementById(id);
+    function resize(){
+      var r = c.getBoundingClientRect();
+      c.width = r.width * (window.devicePixelRatio||1);
+      c.height = r.height * (window.devicePixelRatio||1);
+    }
+    resize();
+    window.addEventListener('resize', resize);
+    return c;
+  }
+  var ecgCanvas = setupCanvas('ecgCanvas');
+  var spo2Canvas = setupCanvas('spo2Canvas');
+  var respCanvas = setupCanvas('respCanvas');
+
+  function makeScroller(canvas, color, lineWidth){
+    var ctx = canvas.getContext('2d');
+    var buffer = [];
+    return {
+      push: function(v){ buffer.push(v); },
+      draw: function(){
+        var w = canvas.width, h = canvas.height;
+        ctx.clearRect(0,0,w,h);
+        var maxPoints = Math.floor(w/2);
+        while(buffer.length > maxPoints) buffer.shift();
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth || 2;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 4;
+        for(var i=0;i<buffer.length;i++){
+          var x = w - (buffer.length-i)*2;
+          var y = h/2 - buffer[i]*(h*0.42);
+          if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+        }
+        ctx.stroke();
+      }
+    };
+  }
+  var ecgScroll = makeScroller(ecgCanvas, '#33ff8c', 2.2);
+  var spo2Scroll = makeScroller(spo2Canvas, '#35d4ff', 2);
+  var respScroll = makeScroller(respCanvas, '#ffd93d', 2);
+
+  // QRS complex shape generator (normalized -1..1 over a beat)
+  function qrsSample(phase){
+    // phase 0..1 within one heartbeat
+    if(phase < 0.06) return 0.05*Math.sin(phase/0.06*Math.PI); // P wave
+    if(phase < 0.10) return 0;
+    if(phase < 0.13) return -0.15*(phase-0.10)/0.03; // Q
+    if(phase < 0.16) return map(phase,0.13,0.16,-0.15,1.0); // R up
+    if(phase < 0.19) return map(phase,0.16,0.19,1.0,-0.35); // R down / S
+    if(phase < 0.24) return map(phase,0.19,0.24,-0.35,0);
+    if(phase < 0.45) return 0;
+    if(phase < 0.62) return 0.18*Math.sin((phase-0.45)/0.17*Math.PI); // T wave
+    return 0;
+  }
+  function flatlineSample(phase){ return (Math.random()-0.5)*0.02; }
+
+  var ecgPhase = 0;
+  var lastBeatAt = 0;
+  var beatCount = 0;
+
+  function ecgStep(dt){
+    if(state.arrest){
+      ecgScroll.push(flatlineSample());
+      return;
+    }
+    var hr = Math.max(state.hr, 1);
+    var beatDur = 60/hr; // seconds per beat
+    ecgPhase += dt/beatDur;
+    if(ecgPhase >= 1){
+      ecgPhase -= 1;
+      beatCount++;
+      beep(1000, 0.06);
+    }
+    ecgScroll.push(qrsSample(ecgPhase));
+  }
+
+  var plethPhase = 0;
+  function spo2Step(dt){
+    if(state.arrest || state.spo2 < 55){
+      spo2Scroll.push((Math.random()-0.5)*0.02);
+      return;
+    }
+    var hr = Math.max(state.hr,1);
+    var beatDur = 60/hr;
+    plethPhase += dt/beatDur;
+    if(plethPhase>=1) plethPhase -=1;
+    // pleth: fast rise, slow decay
+    var v;
+    if(plethPhase < 0.18) v = map(plethPhase,0,0.18,0,1);
+    else v = Math.max(0, 1 - (plethPhase-0.18)/0.7);
+    spo2Scroll.push(v*0.85 - 0.15);
+  }
+
+  var respPhase = 0;
+  function respStep(dt){
+    if(state.arrest || state.resp < 1){
+      respScroll.push(0);
+      return;
+    }
+    var rr = Math.max(state.resp,1);
+    var breathDur = 60/rr;
+    respPhase += dt/breathDur;
+    if(respPhase>=1) respPhase -=1;
+    respScroll.push(Math.sin(respPhase*Math.PI*2)*0.6);
+  }
+
+  // ---------- ALARM LOGIC ----------
+  function checkAlarms(){
+    var alarming = false;
+    var hrAlarm = state.hr < 50 || state.hr > 120 || state.arrest;
+    var spo2Alarm = state.spo2 < 90;
+    var respAlarm = state.resp < 8 || state.resp > 24;
+    alarming = hrAlarm || spo2Alarm || respAlarm;
+
+    els.vitalHR.classList.toggle('blink', hrAlarm);
+    els.vitalSpo2.classList.toggle('blink', spo2Alarm);
+    els.vitalResp.classList.toggle('blink', respAlarm);
+
+    els.screen.classList.toggle('alarm-flash', alarming && !state.silenced);
+    els.alarmState.classList.toggle('active', alarming);
+    els.alarmState.textContent = alarming ? (state.silenced ? 'ALARME SILENCIADO' : 'ALARME — VERIFICAR PACIENTE') : 'ALARMES ATIVOS';
+    return alarming;
+  }
+
+  var lastAlarmBeep = 0;
+  function maybeAlarmBeep(ts){
+    if(checkAlarms() && !state.silenced){
+      if(ts - lastAlarmBeep > 700){
+        beep(660,0.12);
+        lastAlarmBeep = ts;
+      }
+    }
+  }
+
+  // ---------- MAIN LOOP ----------
+  var lastTs = null;
+  function loop(ts){
+    if(lastTs === null) lastTs = ts;
+    var dt = Math.min((ts-lastTs)/1000, 0.1);
+    lastTs = ts;
+
+    if(state.running){
+      ecgStep(dt);
+      spo2Step(dt);
+      respStep(dt);
+    }
+    ecgScroll.draw();
+    spo2Scroll.draw();
+    respScroll.draw();
+
+    // update numeric displays with tiny natural jitter
+    els.hrVal.textContent = state.arrest ? '0' : Math.round(state.hr);
+    els.spo2Val.textContent = state.arrest ? '--' : Math.round(state.spo2);
+    els.respVal.textContent = state.arrest ? '0' : Math.round(state.resp);
+
+    maybeAlarmBeep(ts);
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // NIBP simulated readings
+  function updateNibpDisplay(){
+    els.nibpVal.textContent = Math.round(state.sys) + '/' + Math.round(state.dia);
+    els.mapVal.textContent = Math.round((state.sys + 2*state.dia)/3);
+  }
+  updateNibpDisplay();
+
+  document.getElementById('btnNibp').onclick =
+  document.getElementById('btnNibpStart').onclick = function(){
+    var btn = this;
+    var original = btn.textContent;
+    btn.textContent = 'Medindo...';
+    setTimeout(function(){
+      updateNibpDisplay();
+      var d = new Date();
+      function p(n){ return n<10?'0'+n:n; }
+      els.nibpTime.textContent = p(d.getHours())+':'+p(d.getMinutes());
+      btn.textContent = original;
+    }, 1400);
+  };
+
+  // ---------- PHYSICAL BUTTONS ----------
+  document.getElementById('btnSilence').onclick = function(){
+    state.silenced = !state.silenced;
+    this.style.filter = state.silenced ? 'brightness(1.6)' : 'none';
+  };
+  document.getElementById('btnPower').onclick = function(){
+    state.running = !state.running;
+  };
+  document.getElementById('btnFreeze').onclick = function(){
+    state.running = !state.running;
+    this.textContent = state.running ? 'Congelar Tela' : 'Retomar Tela';
+  };
+  document.getElementById('btnPrint').onclick = function(){
+    alert('Simulação: enviando tira de ritmo para a impressora do monitor.');
+  };
+  document.getElementById('btnAlarmsMenu').onclick = function(){
+    alert('Limites de alarme (demo):\\nFC 50–120 bpm\\nSpO₂ ≥ 90%\\nFR 8–24 rpm');
+  };
+  document.getElementById('btnLeads').onclick = function(){
+    alert('Derivação alterada: II → I → III → II (ciclo demonstrativo)');
+  };
+  document.getElementById('btnMenu').onclick = function(){
+    alert('Menu principal (demo): Configurações, Tendências, Alarmes, Admissão de paciente.');
+  };
+  document.getElementById('volKnob').onclick = function(){ this.style.transform='rotate(25deg)'; setTimeout(()=>this.style.transform='',200); };
+  document.getElementById('selKnob').onclick = function(){ this.style.transform='rotate(-25deg)'; setTimeout(()=>this.style.transform='',200); };
+
+  // ---------- TEACHER PANEL ----------
+  var panel = document.getElementById('teacherPanel');
+  document.getElementById('teacherToggle').onclick = function(){ panel.classList.add('open'); };
+  document.getElementById('teacherClose').onclick = function(){ panel.classList.remove('open'); };
+
+  function bindRange(id, lblId, key, suffix){
+    var input = document.getElementById(id);
+    var lbl = document.getElementById(lblId);
+    input.addEventListener('input', function(){
+      state[key] = Number(input.value);
+      lbl.textContent = input.value + suffix;
+      if(key==='sys' || key==='dia') updateNibpDisplay();
+      state.arrest = false;
+    });
+  }
+  bindRange('rangeHR','lblHR','hr',' bpm');
+  bindRange('rangeSpo2','lblSpo2','spo2',' %');
+  bindRange('rangeResp','lblResp','resp',' rpm');
+  bindRange('rangeSys','lblSys','sys',' mmHg');
+  bindRange('rangeDia','lblDia','dia',' mmHg');
+
+  function setAllRanges(){
+    document.getElementById('rangeHR').value = state.hr;
+    document.getElementById('lblHR').textContent = state.hr + ' bpm';
+    document.getElementById('rangeSpo2').value = state.spo2;
+    document.getElementById('lblSpo2').textContent = state.spo2 + ' %';
+    document.getElementById('rangeResp').value = state.resp;
+    document.getElementById('lblResp').textContent = state.resp + ' rpm';
+    document.getElementById('rangeSys').value = state.sys;
+    document.getElementById('lblSys').textContent = state.sys + ' mmHg';
+    document.getElementById('rangeDia').value = state.dia;
+    document.getElementById('lblDia').textContent = state.dia + ' mmHg';
+    updateNibpDisplay();
+  }
+
+  var presets = {
+    normal:   { hr:78,  spo2:98, resp:16, sys:118, dia:76, arrest:false },
+    tachy:    { hr:165, spo2:95, resp:26, sys:100, dia:65, arrest:false },
+    brady:    { hr:38,  spo2:94, resp:10, sys:88,  dia:55, arrest:false },
+    hipoxia:  { hr:110, spo2:78, resp:30, sys:105, dia:68, arrest:false },
+    hipotensao:{hr:128, spo2:90, resp:24, sys:72,  dia:44, arrest:false },
+    pcr:      { hr:0,   spo2:0,  resp:0,  sys:0,   dia:0,  arrest:true  },
+    volta:    { hr:60,  spo2:88, resp:12, sys:80,  dia:50, arrest:false },
+  };
+
+  document.querySelectorAll('.presets button').forEach(function(btn){
+    btn.onclick = function(){
+      var p = presets[btn.getAttribute('data-preset')];
+      if(!p) return;
+      state.hr = p.hr; state.spo2 = p.spo2; state.resp = p.resp;
+      state.sys = p.sys; state.dia = p.dia; state.arrest = p.arrest;
+      state.running = true;
+      setAllRanges();
+    };
+  });
+
+  setAllRanges();
+})();
+</script>
+</body>
+</html>
