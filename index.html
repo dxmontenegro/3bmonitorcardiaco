@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  >
+
+  <meta name="theme-color" content="#000000">
+
+  <title>CardioSim MX-7 — Simulador Educacional</title>
+
+  <style>
+    :root {
+      --bezel: #1b1d1f;
+      --bezel-2: #26292c;
+      --screen: #05100c;
+      --green: #33ff8c;
+      --cyan: #35d4ff;
+      --yellow: #ffd93d;
+      --red: #ff4d4d;
+      --white: #eef2f0;
+      --muted: #8a8f93;
+      --line: #123;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+      font-family: "Segoe UI", Arial, sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    body {
+      overscroll-behavior: none;
+    }
+
+    #device {
+      width: 100vw;
+      height: 100dvh;
+      padding:
+        max(0.8vh, env(safe-area-inset-top))
+        max(1vw, env(safe-area-inset-right))
+        max(0.7vh, env(safe-area-inset-bottom))
+        max(1vw, env(safe-area-inset-left));
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, var(--bezel), var(--bezel-2));
+    }
+
+    #brandbar {
+      min-height: 3.2vh;
+      padding: 0 0.6vw 0.6vh;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--muted);
+      font-size: clamp(9px, 1.35vh, 14px);
+      letter-spacing: 1.4px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    #brandbar b {
+      color: #c7cbce;
+      font-size: clamp(10px, 1.55vh, 16px);
+      letter-spacing: 2px;
+    }
+
+    #brandbar span:last-child {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #screen {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 3px solid #000;
+      border-radius: 10px;
+      background: var(--screen);
+      box-shadow:
+        inset 0 0 30px rgba(0, 0, 0, 0.85),
+        0 0 0 2px #333;
+    }
+
+    #screen.alarm-flash {
+      animation: flashBorder 1s infinite;
+    }
+
+    @keyframes flashBorder {
+      0%,
+      100% {
+        box-shadow:
+          inset 0 0 30px rgba(0, 0, 0, 0.85),
+          0 0 0 2px #333;
+      }
+
+      50% {
+        box-shadow:
+          inset 0 0 42px rgba(255, 0, 0, 0.50),
+          0 0 0 4px var(--red);
+      }
+    }
+
+    #topbar {
+      min-height: 5.2vh;
+      padding: 0.75vh 1.1vw;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid var(--line);
+      color: var(--white);
+      font-size: clamp(10px, 1.45vh, 15px);
+    }
+
+    .patient {
+      display: flex;
+      gap: clamp(10px, 1.5vw, 24px);
+      min-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    .patient span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .lbl {
+      margin-right: 4px;
+      color: #5a8f78;
+    }
+
+    #clock {
+      color: #9fe8c4;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    #alarmState {
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #123;
+      color: #5a8f78;
+      font-size: clamp(8px, 1.18vh, 12px);
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    #alarmState.active {
+      background: var(--red);
+      color: #2b0000;
+    }
+
+    #main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      overflow: hidden;
+    }
+
+    #waves {
+      flex: 3;
+      min-width: 0;
+      padding: 0.45vh 0.65vw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35vh;
+      border-right: 1px solid var(--line);
+    }
+
+    .wave-row {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      border-bottom: 1px dashed #113322;
+    }
+
+    .wave-row:last-child {
+      border-bottom: 0;
+    }
+
+    .wave-row .tag {
+      position: absolute;
+      z-index: 2;
+      top: 2px;
+      left: 6px;
+      font-size: clamp(8px, 1.3vh, 13px);
+      font-weight: bold;
+      pointer-events: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #vitals {
+      flex: 1.16;
+      min-width: clamp(132px, 20vw, 250px);
+      padding: 0.5vh 0.7vw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35vh;
+    }
+
+    .vital {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      padding: 0 0.35vw;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-bottom: 1px solid #113322;
+    }
+
+    .vital:last-child {
+      border-bottom: 0;
+    }
+
+    .vital .label {
+      font-size: clamp(9px, 1.35vh, 14px);
+      letter-spacing: 1px;
+    }
+
+    .vital .value {
+      font-size: clamp(32px, 5.3vh, 65px);
+      font-weight: 700;
+      line-height: 0.98;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .vital .sub {
+      font-size: clamp(8px, 1.2vh, 13px);
+      opacity: 0.86;
+    }
+
+    .vital .limits {
+      position: absolute;
+      top: 0.25vh;
+      right: 0.35vw;
+      font-size: clamp(7px, 1.06vh, 11px);
+      opacity: 0.62;
+    }
+
+    .hr .value,
+    .hr .label,
+    .hr .limits {
+      color: var(--green);
+    }
+
+    .spo2 .value,
+    .spo2 .label,
+    .spo2 .limits {
+      color: var(--cyan);
+    }
+
+    .nibp .value,
+    .nibp .label,
+    .nibp .limits {
+      color: var(--red);
+    }
+
+    .resp .value,
+    .resp .label,
+    .resp .limits {
+      color: var(--yellow);
+    }
+
+    .vital.blink .value {
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      50% {
+        opacity: 0.22;
+      }
+    }
+
+    #softkeys {
+      min-height: 5.1vh;
+      display: flex;
+      border-top: 1px solid var(--line);
+    }
+
+    #softkeys button {
+      flex: 1;
+      min-width: 0;
+      padding: 0.7vh 0.2vw;
+      border: 0;
+      border-right: 1px solid var(--line);
+      background: none;
+      color: #9fe8c4;
+      font-size: clamp(8px, 1.28vh, 13px);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    #softkeys button:last-child {
+      border-right: 0;
+    }
+
+    #softkeys button:active {
+      background: #0f2a20;
+    }
+
+    #panel {
+      min-height: 8vh;
+      padding: 0.8vh 0.8vw 0.2vh;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1vw;
+    }
+
+    #panel .group {
+      display: flex;
+      align-items: center;
+      gap: 0.8vw;
+    }
+
+    .pbtn {
+      width: clamp(40px, 5.2vh, 64px);
+      height: clamp(40px, 5.2vh, 64px);
+      padding: 0;
+      border: 1px solid #111;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #4a4e52, #2a2d30 70%);
+      color: #dfe3e5;
+      box-shadow: 0 2px 0 #0a0a0a, 0 3px 4px rgba(0, 0, 0, 0.5);
+      font-size: clamp(8px, 1.05vh, 12px);
+      line-height: 1.05;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .pbtn:active {
+      transform: translateY(2px);
+      box-shadow: 0 0 0 #0a0a0a inset;
+    }
+
+    .pbtn.wide {
+      width: clamp(62px, 8vh, 98px);
+      border-radius: 10px;
+    }
+
+    .pbtn.power {
+      background: radial-gradient(circle at 35% 30%, #3a5, #163b21 70%);
+    }
+
+    .pbtn.alarmoff {
+      background: radial-gradient(circle at 35% 30%, #d55, #6b1414 70%);
+    }
+
+    .knob {
+      position: relative;
+      width: clamp(48px, 6.4vh, 76px);
+      height: clamp(48px, 6.4vh, 76px);
+      border: 1px solid #000;
+      border-radius: 50%;
+      background: conic-gradient(from 220deg, #555, #222 60%, #555);
+      box-shadow: 0 2px 0 #0a0a0a, 0 3px 6px rgba(0, 0, 0, 0.6);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .knob::after {
+      position: absolute;
+      top: 8%;
+      left: 50%;
+      width: 3px;
+      height: 35%;
+      border-radius: 2px;
+      background: #eee;
+      content: "";
+      transform: translateX(-50%);
+    }
+
+    #logo {
+      color: #6b6f72;
+      font-size: clamp(8px, 1.25vh, 13px);
+      letter-spacing: 1px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    #teacherToggle {
+      position: fixed;
+      z-index: 100;
+      right: calc(0.6vw + env(safe-area-inset-right));
+      bottom: calc(0.5vh + env(safe-area-inset-bottom));
+      padding: 4px 8px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #222;
+      color: #999;
+      font-size: 10px;
+      opacity: 0.48;
+      cursor: pointer;
+    }
+
+    #teacherPanel {
+      position: fixed;
+      z-index: 200;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.78);
+    }
+
+    #teacherPanel.open {
+      display: flex;
+    }
+
+    #teacherCard {
+      width: min(600px, 96vw);
+      max-height: min(88dvh, 700px);
+      padding: 20px 22px;
+      overflow: auto;
+      border: 1px solid #333;
+      border-radius: 12px;
+      background: #1c1f21;
+      color: #e6e9ea;
+    }
+
+    #teacherCard h2 {
+      margin-top: 0;
+      color: #9fe8c4;
+      font-size: 18px;
+    }
+
+    #teacherCard small {
+      color: #889;
+    }
+
+    #teacherCard .row {
+      margin: 14px 0;
+    }
+
+    #teacherCard label {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 5px;
+      color: #bcc;
+      font-size: 13px;
+    }
+
+    #teacherCard input[type="range"] {
+      width: 100%;
+      accent-color: var(--green);
+    }
+
+    #teacherCard .presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    #teacherCard .presets button,
+    #teacherCard .closeRow button {
+      padding: 9px 12px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #2a2f32;
+      color: #e6e9ea;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    #teacherCard .presets button:hover,
+    #teacherCard .closeRow button:hover {
+      background: #3a4044;
+    }
+
+    #teacherCard .closeRow {
+      margin-top: 16px;
+      text-align: right;
+    }
+
+    #teacherCard .closeRow button {
+      border: 0;
+      background: #3a4044;
+      color: #fff;
+    }
+
+    /* Tela inicial: necessária para o toque que libera fullscreen */
+    #startOverlay {
+      position: fixed;
+      z-index: 9999;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      padding: 28px;
+      background:
+        radial-gradient(circle at 50% 35%, rgba(51, 255, 140, 0.16), transparent 35%),
+        #050807;
+      color: #dfffea;
+      text-align: center;
+    }
+
+    #startOverlay h1 {
+      margin: 0;
+      color: var(--green);
+      font-size: clamp(2rem, 8vw, 3.5rem);
+      letter-spacing: 0.08em;
+    }
+
+    #startOverlay p {
+      max-width: 570px;
+      margin: 0;
+      color: #9dbbac;
+      font-size: clamp(0.96rem, 3.7vw, 1.2rem);
+      line-height: 1.55;
+    }
+
+    #btnStartMonitor {
+      min-width: min(84vw, 360px);
+      padding: 18px 24px;
+      border: 2px solid #1fa85c;
+      border-radius: 12px;
+      background: linear-gradient(180deg, #1f8a4b, #0e4d29);
+      box-shadow: 0 7px 0 #062214, 0 12px 24px rgba(0, 0, 0, 0.45);
+      color: #effff5;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+
+    #btnStartMonitor:active {
+      transform: translateY(5px);
+      box-shadow: 0 2px 0 #062214;
+    }
+
+    #fullscreenInfo {
+      min-height: 20px;
+      color: var(--yellow);
+      font-size: 0.86rem;
+    }
+
+    @media (orientation: portrait) {
+      #main {
+        min-height: 0;
+      }
+
+      #vitals {
+        min-width: 122px;
+      }
+
+      .vital .value {
+        font-size: clamp(28px, 4.6vh, 52px);
+      }
+
+      #brandbar span:last-child {
+        display: none;
+      }
+
+      #logo {
+        display: none;
+      }
+    }
+
+    @media (max-width: 620px) {
+      #panel .group:nth-child(2) {
+        display: none;
+      }
+
+      #softkeys button {
+        font-size: 8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="startOverlay">
+    <h1>CardioSim MX-7</h1>
+
+    <p>
+      Simulador educacional de monitor multiparamétrico.<br>
+      Gire o tablet para paisagem e toque abaixo para iniciar.
+    </p>
+
+    <button id="btnStartMonitor" type="button">
+      ▶ INICIAR MONITOR EM TELA CHEIA
+    </button>
+
+    <div id="fullscreenInfo"></div>
+  </div>
+
+  <div id="device">
+    <div id="brandbar">
+      <span><b>3ºB - MACCE</b>&nbsp; MX-7</span>
+      <span>SIMULADOR EDUCACIONAL — NÃO É UM DISPOSITIVO MÉDICO REAL</span>
+    </div>
+
+    <div id="screen">
+      <div id="topbar">
+        <div class="patient">
+          <span><span class="lbl">Leito</span>12-A</span>
+          <span><span class="lbl">Paciente</span>3ºA</span>
+          <span><span class="lbl">Modo</span>Adulto</span>
+        </div>
+
+        <div id="alarmState">ALARMES ATIVOS</div>
+        <div id="clock">00:00:00</div>
+      </div>
+
+      <div id="main">
+        <div id="waves">
+          <div class="wave-row">
+            <div class="tag" style="color: var(--green)">ECG II &nbsp;25mm/s</div>
+            <canvas id="ecgCanvas"></canvas>
+          </div>
+
+          <div class="wave-row">
+            <div class="tag" style="color: var(--cyan)">SpO₂ Pleth</div>
+            <canvas id="spo2Canvas"></canvas>
+          </div>
+
+          <div class="wave-row">
+            <div class="tag" style="color: var(--yellow)">RESP</div>
+            <canvas id="respCanvas"></canvas>
+          </div>
+        </div>
+
+        <div id="vitals">
+          <div class="vital hr">
+            <div class="limits">50–120</div>
+            <div class="label">FC <span style="font-size: 1.1vh">bpm</span></div>
+            <div class="value" id="hrVal">78</div>
+          </div>
+
+          <div class="vital spo2">
+            <div class="limits">≥90</div>
+            <div class="label">SpO₂ <span style="font-size: 1.1vh">%</span></div>
+            <div class="value" id="spo2Val">98</div>
+          </div>
+
+          <div class="vital nibp">
+            <div class="limits">90–140/60</div>
+            <div class="label">PNI <span style="font-size: 1.1vh">mmHg</span></div>
+            <div class="value" id="nibpVal">118/76</div>
+            <div class="sub">
+              (<span id="mapVal">90</span>) — última: <span id="nibpTime">--:--</span>
+            </div>
+          </div>
+
+          <div class="vital resp">
+            <div class="limits">8–24</div>
+            <div class="label">FR <span style="font-size: 1.1vh">rpm</span></div>
+            <div class="value" id="respVal">16</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="softkeys">
+        <button id="btnAlarmsMenu">Limites de Alarme</button>
+        <button id="btnNibp">Iniciar PNI</button>
+        <button id="btnFreeze">Congelar Tela</button>
+        <button id="btnLeads">Derivação</button>
+        <button id="btnMenu">Menu Principal</button>
+      </div>
+    </div>
+
+    <div id="panel">
+      <div class="group">
+        <button class="pbtn power" id="btnPower" type="button">LIGA<br>DESL</button>
+        <button class="pbtn alarmoff" id="btnSilence" type="button">SILEN.<br>ALARME</button>
+        <button class="pbtn" id="btnPrint" type="button">IMPRI<br>MIR</button>
+      </div>
+
+      <div class="group">
+        <div id="logo">MONTE CARDIO · EEMTI DRAGÃO DO MAR</div>
+      </div>
+
+      <div class="group">
+        <button class="pbtn wide" id="btnNibpStart" type="button">PNI<br>START</button>
+        <div class="knob" id="volKnob" title="Volume"></div>
+        <div class="knob" id="selKnob" title="Selecionar / Navegar"></div>
+      </div>
+    </div>
+  </div>
+
+  <button id="teacherToggle" type="button">Painel do professor ⚙</button>
+
+  <div id="teacherPanel">
+    <div id="teacherCard">
+      <h2>Painel do Professor — controlar o cenário</h2>
+
+      <small>
+        Ajuste os valores para simular diferentes condições clínicas durante a demonstração.
+      </small>
+
+      <div class="row">
+        <label>Frequência cardíaca (FC) <span id="lblHR">78 bpm</span></label>
+        <input type="range" id="rangeHR" min="0" max="220" value="78">
+      </div>
+
+      <div class="row">
+        <label>Saturação de oxigênio (SpO₂) <span id="lblSpo2">98 %</span></label>
+        <input type="range" id="rangeSpo2" min="50" max="100" value="98">
+      </div>
+
+      <div class="row">
+        <label>Frequência respiratória (FR) <span id="lblResp">16 rpm</span></label>
+        <input type="range" id="rangeResp" min="0" max="45" value="16">
+      </div>
+
+      <div class="row">
+        <label>Pressão sistólica <span id="lblSys">118 mmHg</span></label>
+        <input type="range" id="rangeSys" min="50" max="220" value="118">
+      </div>
+
+      <div class="row">
+        <label>Pressão diastólica <span id="lblDia">76 mmHg</span></label>
+        <input type="range" id="rangeDia" min="30" max="140" value="76">
+      </div>
+
+      <div class="presets">
+        <button data-preset="normal">Normal</button>
+        <button data-preset="tachy">Taquicardia</button>
+        <button data-preset="brady">Bradicardia</button>
+        <button data-preset="hipoxia">Hipóxia</button>
+        <button data-preset="hipotensao">Hipotensão / choque</button>
+        <button data-preset="pcr">Parada cardiorrespiratória</button>
+        <button data-preset="volta">Retorno à circulação</button>
+      </div>
+
+      <div class="closeRow">
+        <button id="teacherClose" type="button">Fechar e voltar ao monitor</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var state = {
+        hr: 78,
+        spo2: 98,
+        resp: 16,
+        sys: 118,
+        dia: 76,
+        running: true,
+        arrest: false,
+        silenced: false
+      };
+
+      var els = {
+        hrVal: document.getElementById("hrVal"),
+        spo2Val: document.getElementById("spo2Val"),
+        nibpVal: document.getElementById("nibpVal"),
+        mapVal: document.getElementById("mapVal"),
+        respVal: document.getElementById("respVal"),
+        nibpTime: document.getElementById("nibpTime"),
+        clock: document.getElementById("clock"),
+        alarmState: document.getElementById("alarmState"),
+        screen: document.getElementById("screen"),
+        vitalHR: document.querySelector(".vital.hr"),
+        vitalSpo2: document.querySelector(".vital.spo2"),
+        vitalResp: document.querySelector(".vital.resp")
+      };
+
+      function map(v, i1, i2, o1, o2) {
+        return o1 + (o2 - o1) * ((v - i1) / (i2 - i1));
+      }
+
+      function tickClock() {
+        var d = new Date();
+
+        function pad(n) {
+          return n < 10 ? "0" + n : n;
+        }
+
+        els.clock.textContent =
+          pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+      }
+
+      setInterval(tickClock, 1000);
+      tickClock();
+
+      var audioCtx = null;
+
+      function beep(freq, dur) {
+        if (state.silenced) return;
+
+        try {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          }
+
+          if (audioCtx.state === "suspended") {
+            audioCtx.resume();
+          }
+
+          var oscillator = audioCtx.createOscillator();
+          var gain = audioCtx.createGain();
+
+          oscillator.type = "sine";
+          oscillator.frequency.value = freq || 880;
+          gain.gain.value = 0.05;
+
+          oscillator.connect(gain);
+          gain.connect(audioCtx.destination);
+
+          oscillator.start();
+          gain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            audioCtx.currentTime + (dur || 0.09)
+          );
+          oscillator.stop(audioCtx.currentTime + (dur || 0.09) + 0.02);
+        } catch (e) {}
+      }
+
+      function setupCanvas(id) {
+        var canvas = document.getElementById(id);
+
+        function resize() {
+          var rect = canvas.getBoundingClientRect();
+          var ratio = window.devicePixelRatio || 1;
+          canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+          canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+        }
+
+        resize();
+        window.addEventListener("resize", resize);
+        window.addEventListener("orientationchange", function () {
+          setTimeout(resize, 250);
+        });
+
+        return canvas;
+      }
+
+      var ecgCanvas = setupCanvas("ecgCanvas");
+      var spo2Canvas = setupCanvas("spo2Canvas");
+      var respCanvas = setupCanvas("respCanvas");
+
+      function makeScroller(canvas, color, lineWidth) {
+        var ctx = canvas.getContext("2d");
+        var buffer = [];
+
+        return {
+          push: function (value) {
+            buffer.push(value);
+          },
+
+          draw: function () {
+            var width = canvas.width;
+            var height = canvas.height;
+            var step = Math.max(2, Math.round((window.devicePixelRatio || 1) * 2));
+            var maxPoints = Math.floor(width / step);
+
+            while (buffer.length > maxPoints) {
+              buffer.shift();
+            }
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.beginPath();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth * (window.devicePixelRatio || 1);
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 4 * (window.devicePixelRatio || 1);
+
+            for (var i = 0; i < buffer.length; i++) {
+              var x = width - (buffer.length - i) * step;
+              var y = height / 2 - buffer[i] * (height * 0.42);
+
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
+
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+          }
+        };
+      }
+
+      var ecgScroll = makeScroller(ecgCanvas, "#33ff8c", 2.2);
+      var spo2Scroll = makeScroller(spo2Canvas, "#35d4ff", 2);
+      var respScroll = makeScroller(respCanvas, "#ffd93d", 2);
+
+      function qrsSample(phase) {
+        if (phase < 0.06) return 0.05 * Math.sin((phase / 0.06) * Math.PI);
+        if (phase < 0.10) return 0;
+        if (phase < 0.13) return -0.15 * ((phase - 0.10) / 0.03);
+        if (phase < 0.16) return map(phase, 0.13, 0.16, -0.15, 1.0);
+        if (phase < 0.19) return map(phase, 0.16, 0.19, 1.0, -0.35);
+        if (phase < 0.24) return map(phase, 0.19, 0.24, -0.35, 0);
+        if (phase < 0.45) return 0;
+        if (phase < 0.62) return 0.18 * Math.sin(((phase - 0.45) / 0.17) * Math.PI);
+        return 0;
+      }
+
+      function flatlineSample() {
+        return (Math.random() - 0.5) * 0.02;
+      }
+
+      var ecgPhase = 0;
+      var plethPhase = 0;
+      var respPhase = 0;
+
+      function ecgStep(dt) {
+        if (state.arrest) {
+          ecgScroll.push(flatlineSample());
+          return;
+        }
+
+        var hr = Math.max(state.hr, 1);
+        var beatDur = 60 / hr;
+
+        ecgPhase += dt / beatDur;
+
+        if (ecgPhase >= 1) {
+          ecgPhase -= 1;
+          beep(1000, 0.06);
+        }
+
+        ecgScroll.push(qrsSample(ecgPhase));
+      }
+
+      function spo2Step(dt) {
+        if (state.arrest || state.spo2 < 55) {
+          spo2Scroll.push((Math.random() - 0.5) * 0.02);
+          return;
+        }
+
+        var hr = Math.max(state.hr, 1);
+        var beatDur = 60 / hr;
+
+        plethPhase += dt / beatDur;
+
+        if (plethPhase >= 1) {
+          plethPhase -= 1;
+        }
+
+        var value;
+
+        if (plethPhase < 0.18) {
+          value = map(plethPhase, 0, 0.18, 0, 1);
+        } else {
+          value = Math.max(0, 1 - (plethPhase - 0.18) / 0.7);
+        }
+
+        spo2Scroll.push(value * 0.85 - 0.15);
+      }
+
+      function respStep(dt) {
+        if (state.arrest || state.resp < 1) {
+          respScroll.push(0);
+          return;
+        }
+
+        var rr = Math.max(state.resp, 1);
+        var breathDur = 60 / rr;
+
+        respPhase += dt / breathDur;
+
+        if (respPhase >= 1) {
+          respPhase -= 1;
+        }
+
+        respScroll.push(Math.sin(respPhase * Math.PI * 2) * 0.6);
+      }
+
+      function checkAlarms() {
+        var hrAlarm = state.hr < 50 || state.hr > 120 || state.arrest;
+        var spo2Alarm = state.spo2 < 90;
+        var respAlarm = state.resp < 8 || state.resp > 24;
+        var alarming = hrAlarm || spo2Alarm || respAlarm;
+
+        els.vitalHR.classList.toggle("blink", hrAlarm);
+        els.vitalSpo2.classList.toggle("blink", spo2Alarm);
+        els.vitalResp.classList.toggle("blink", respAlarm);
+
+        els.screen.classList.toggle("alarm-flash", alarming && !state.silenced);
+        els.alarmState.classList.toggle("active", alarming);
+
+        els.alarmState.textContent = alarming
+          ? state.silenced
+            ? "ALARME SILENCIADO"
+            : "ALARME — VERIFICAR"
+          : "ALARMES ATIVOS";
+
+        return alarming;
+      }
+
+      var lastAlarmBeep = 0;
+
+      function maybeAlarmBeep(timestamp) {
+        if (checkAlarms() && !state.silenced && timestamp - lastAlarmBeep > 700) {
+          beep(660, 0.12);
+          lastAlarmBeep = timestamp;
+        }
+      }
+
+      var lastTimestamp = null;
+
+      function loop(timestamp) {
+        if (lastTimestamp === null) {
+          lastTimestamp = timestamp;
+        }
+
+        var dt = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
+        lastTimestamp = timestamp;
+
+        if (state.running) {
+          ecgStep(dt);
+          spo2Step(dt);
+          respStep(dt);
+        }
+
+        ecgScroll.draw();
+        spo2Scroll.draw();
+        respScroll.draw();
+
+        els.hrVal.textContent = state.arrest ? "0" : Math.round(state.hr);
+        els.spo2Val.textContent = state.arrest ? "--" : Math.round(state.spo2);
+        els.respVal.textContent = state.arrest ? "0" : Math.round(state.resp);
+
+        maybeAlarmBeep(timestamp);
+        requestAnimationFrame(loop);
+      }
+
+      requestAnimationFrame(loop);
+
+      function updateNibpDisplay() {
+        els.nibpVal.textContent =
+          Math.round(state.sys) + "/" + Math.round(state.dia);
+
+        els.mapVal.textContent =
+          Math.round((state.sys + 2 * state.dia) / 3);
+      }
+
+      updateNibpDisplay();
+
+      function medirPNI(button) {
+        var original = button.textContent;
+
+        button.textContent = "Medindo...";
+
+        setTimeout(function () {
+          updateNibpDisplay();
+
+          var d = new Date();
+
+          function pad(n) {
+            return n < 10 ? "0" + n : n;
+          }
+
+          els.nibpTime.textContent = pad(d.getHours()) + ":" + pad(d.getMinutes());
+          button.textContent = original;
+        }, 1400);
+      }
+
+      document.getElementById("btnNibp").onclick = function () {
+        medirPNI(this);
+      };
+
+      document.getElementById("btnNibpStart").onclick = function () {
+        medirPNI(this);
+      };
+
+      document.getElementById("btnSilence").onclick = function () {
+        state.silenced = !state.silenced;
+        this.style.filter = state.silenced ? "brightness(1.6)" : "none";
+      };
+
+      document.getElementById("btnPower").onclick = function () {
+        state.running = !state.running;
+      };
+
+      document.getElementById("btnFreeze").onclick = function () {
+        state.running = !state.running;
+        this.textContent = state.running ? "Congelar Tela" : "Retomar Tela";
+      };
+
+      document.getElementById("btnPrint").onclick = function () {
+        alert("Simulação: enviando tira de ritmo para a impressora do monitor.");
+      };
+
+      document.getElementById("btnAlarmsMenu").onclick = function () {
+        alert("Limites de alarme (demo):\nFC 50–120 bpm\nSpO₂ ≥ 90%\nFR 8–24 rpm");
+      };
+
+      document.getElementById("btnLeads").onclick = function () {
+        alert("Derivação alterada: II → I → III → II");
+      };
+
+      document.getElementById("btnMenu").onclick = function () {
+        alert("Menu principal (demo): Configurações, Tendências, Alarmes e Admissão.");
+      };
+
+      document.getElementById("volKnob").onclick = function () {
+        this.style.transform = "rotate(25deg)";
+        var knob = this;
+        setTimeout(function () {
+          knob.style.transform = "";
+        }, 200);
+      };
+
+      document.getElementById("selKnob").onclick = function () {
+        this.style.transform = "rotate(-25deg)";
+        var knob = this;
+        setTimeout(function () {
+          knob.style.transform = "";
+        }, 200);
+      };
+
+      var teacherPanel = document.getElementById("teacherPanel");
+
+      document.getElementById("teacherToggle").onclick = function () {
+        teacherPanel.classList.add("open");
+      };
+
+      document.getElementById("teacherClose").onclick = function () {
+        teacherPanel.classList.remove("open");
+      };
+
+      function bindRange(id, labelId, key, suffix) {
+        var input = document.getElementById(id);
+        var label = document.getElementById(labelId);
+
+        input.addEventListener("input", function () {
+          state[key] = Number(input.value);
+          label.textContent = input.value + suffix;
+
+          if (key === "sys" || key === "dia") {
+            updateNibpDisplay();
+          }
+
+          state.arrest = false;
+        });
+      }
+
+      bindRange("rangeHR", "lblHR", "hr", " bpm");
+      bindRange("rangeSpo2", "lblSpo2", "spo2", " %");
+      bindRange("rangeResp", "lblResp", "resp", " rpm");
+      bindRange("rangeSys", "lblSys", "sys", " mmHg");
+      bindRange("rangeDia", "lblDia", "dia", " mmHg");
+
+      function setAllRanges() {
+        document.getElementById("rangeHR").value = state.hr;
+        document.getElementById("lblHR").textContent = state.hr + " bpm";
+
+        document.getElementById("rangeSpo2").value = state.spo2;
+        document.getElementById("lblSpo2").textContent = state.spo2 + " %";
+
+        document.getElementById("rangeResp").value = state.resp;
+        document.getElementById("lblResp").textContent = state.resp + " rpm";
+
+        document.getElementById("rangeSys").value = state.sys;
+        document.getElementById("lblSys").textContent = state.sys + " mmHg";
+
+        document.getElementById("rangeDia").value = state.dia;
+        document.getElementById("lblDia").textContent = state.dia + " mmHg";
+
+        updateNibpDisplay();
+      }
+
+      var presets = {
+        normal: {
+          hr: 78,
+          spo2: 98,
+          resp: 16,
+          sys: 118,
+          dia: 76,
+          arrest: false
+        },
+
+        tachy: {
+          hr: 165,
+          spo2: 95,
+          resp: 26,
+          sys: 100,
+          dia: 65,
+          arrest: false
+        },
+
+        brady: {
+          hr: 38,
+          spo2: 94,
+          resp: 10,
+          sys: 88,
+          dia: 55,
+          arrest: false
+        },
+
+        hipoxia: {
+          hr: 110,
+          spo2: 78,
+          resp: 30,
+          sys: 105,
+          dia: 68,
+          arrest: false
+        },
+
+        hipotensao: {
+          hr: 128,
+          spo2: 90,
+          resp: 24,
+          sys: 72,
+          dia: 44,
+          arrest: false
+        },
+
+        pcr: {
+          hr: 0,
+          spo2: 0,
+          resp: 0,
+          sys: 0,
+          dia: 0,
+          arrest: true
+        },
+
+        volta: {
+          hr: 60,
+          spo2: 88,
+          resp: 12,
+          sys: 80,
+          dia: 50,
+          arrest: false
+        }
+      };
+
+      document.querySelectorAll(".presets button").forEach(function (button) {
+        button.onclick = function () {
+          var preset = presets[button.getAttribute("data-preset")];
+
+          if (!preset) return;
+
+          state.hr = preset.hr;
+          state.spo2 = preset.spo2;
+          state.resp = preset.resp;
+          state.sys = preset.sys;
+          state.dia = preset.dia;
+          state.arrest = preset.arrest;
+          state.running = true;
+
+          setAllRanges();
+        };
+      });
+
+      setAllRanges();
+
+      /* Fullscreen: precisa ser iniciado por toque do usuário */
+      var startOverlay = document.getElementById("startOverlay");
+      var btnStartMonitor = document.getElementById("btnStartMonitor");
+      var fullscreenInfo = document.getElementById("fullscreenInfo");
+
+      function requestFullscreen() {
+        var element = document.documentElement;
+
+        var request =
+          element.requestFullscreen ||
+          element.webkitRequestFullscreen ||
+          element.msRequestFullscreen;
+
+        if (!request) {
+          fullscreenInfo.textContent =
+            "Tela cheia não disponível. Use o menu ⋮ do Chrome e escolha “Adicionar à tela inicial”.";
+          return Promise.reject();
+        }
+
+        try {
+          var result = request.call(element);
+          return result && typeof result.then === "function"
+            ? result
+            : Promise.resolve();
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      }
+
+      function iniciarMonitor() {
+        if (audioCtx && audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+
+        requestFullscreen()
+          .catch(function () {
+            fullscreenInfo.textContent =
+              "O Chrome não liberou tela cheia. O simulador continuará aberto normalmente.";
+          })
+          .finally(function () {
+            setTimeout(function () {
+              startOverlay.style.display = "none";
+            }, 150);
+          });
+      }
+
+      btnStartMonitor.addEventListener("click", iniciarMonitor);
+
+      function fullscreenSaiu() {
+        var fullscreenAtivo =
+          document.fullscreenElement ||
+          document.webkitFullscreenElement ||
+          document.msFullscreenElement;
+
+        if (!fullscreenAtivo) {
+          startOverlay.style.display = "flex";
+          fullscreenInfo.textContent =
+            "Tela cheia encerrada. Toque para iniciar novamente.";
+        }
+      }
+
+      document.addEventListener("fullscreenchange", fullscreenSaiu);
+      document.addEventListener("webkitfullscreenchange", fullscreenSaiu);
+      document.addEventListener("MSFullscreenChange", fullscreenSaiu);
+    })();
+  </script>
+</body>
+</html>
